@@ -6,12 +6,15 @@ import (
 )
 
 type Handler struct {
+	maxBytesLength int64
+
 	userService UserService
 }
 
-func NewHandler(userService UserService) *Handler {
+func NewHandler(maxBodyLength int64, userService UserService) *Handler {
 	return &Handler{
-		userService: userService,
+		maxBytesLength: maxBodyLength,
+		userService:    userService,
 	}
 }
 
