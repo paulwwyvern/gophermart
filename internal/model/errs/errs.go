@@ -12,4 +12,5 @@ var (
 	ErrOrderAlreadyExists       = errors.New("order already exists")
 	ErrOrderNotFound            = errors.New("order not found")
 	ErrOrderConflict            = errors.New("order conflict")
+	ErrBalanceNotEnough         = errors.New("balance not enough")
 )

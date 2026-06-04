@@ -10,7 +10,7 @@ CREATE TABLE users (
 CREATE INDEX user_login_index ON users(login);
 
 CREATE TABLE order_statuses (
-    id SERIAL PRIMARY KEY ,
+    id SERIAL PRIMARY KEY,
     status VARCHAR(15)
 );
 
@@ -33,7 +33,7 @@ CREATE TABLE orders (
 
 CREATE INDEX orders_number_index ON orders(number);
 
-CREATE INDEX orders_sorted_index ON orders(user_id, uploaded_at);
+CREATE INDEX orders_sorted_index ON orders(user_id, uploaded_at DESC);
 
 CREATE TABLE withdrawals (
     id BIGSERIAL PRIMARY KEY,
@@ -43,4 +43,4 @@ CREATE TABLE withdrawals (
     processed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX withdrawals_sorted_index ON withdrawals(user_id, processed_at);
+CREATE INDEX withdrawals_sorted_index ON withdrawals(user_id, processed_at DESC);

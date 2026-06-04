@@ -55,7 +55,7 @@ func (s *Storage) GetOrderByID(ctx context.Context, orderId int64) (*model.Order
 
 func (s *Storage) GetOrdersByUserID(ctx context.Context, userId int64) ([]*model.Order, error) {
 	stmt, err := s.db.PrepareContext(ctx, `SELECT o.id, o.number, s.status, o.accrual, o.uploaded_at
-			FROM orders o JOIN order_statuses s ON o.status = s.id WHERE user_id = $1 ORDER BY o.uploaded_at ASC`)
+			FROM orders o JOIN order_statuses s ON o.status = s.id WHERE user_id = $1 ORDER BY o.uploaded_at DESC`)
 	if err != nil {
 		return nil, fmt.Errorf("Postgres.GetOrdersByUserID: prepare statement error: %w", err)
 	}
@@ -67,6 +67,7 @@ func (s *Storage) GetOrdersByUserID(ctx context.Context, userId int64) ([]*model
 		return nil, fmt.Errorf("Postgres.GetOrdersByUserID: exec query error: %w", err)
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		var order model.Order
 		order.UserID = userId

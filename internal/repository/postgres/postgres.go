@@ -51,12 +51,36 @@ func (s *Storage) Close() {
 	s.db.Close()
 }
 
+func (s *Storage) BeginTx(ctx context.Context) (context.Context, error) {
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	return insertTx(ctx, tx), nil
+}
+
+func (s *Storage) CommitTx(ctx context.Context) error {
+	tx := getTx(ctx)
+	if tx == nil {
+		return errors.New("Commit: no transaction found")
+	}
+	return tx.Commit()
+}
+
+func (s *Storage) RollbackTx(ctx context.Context) error {
+	tx := getTx(ctx)
+	if tx == nil {
+		return errors.New("Rollback: no transaction found")
+	}
+	return tx.Rollback()
+}
+
 type ctxKey string
 
 var txKey ctxKey = "tx"
 
-func insertTx(ctx context.Context, tx *sql.Tx) {
-	ctx = context.WithValue(ctx, txKey, tx)
+func insertTx(ctx context.Context, tx *sql.Tx) context.Context {
+	return context.WithValue(ctx, txKey, tx)
 }
 
 func getTx(ctx context.Context) *sql.Tx {

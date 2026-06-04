@@ -26,3 +26,11 @@ type Order struct {
 	Accrual    decimal.Decimal
 	UploadedAt time.Time
 }
+
+type Withdrawal struct {
+	WithdrawalID int64
+	UserID       int64
+	OrderNumber  string
+	Sum          decimal.Decimal
+	ProceedAt    time.Time
+}
