@@ -8,13 +8,17 @@ import (
 type Handler struct {
 	maxBytesLength int64
 
-	userService UserService
+	userService    UserService
+	orderService   OrderService
+	balanceService BalanceService
 }
 
-func NewHandler(maxBodyLength int64, userService UserService) *Handler {
+func NewHandler(maxBodyLength int64, userService UserService, orderService OrderService, balanceService BalanceService) *Handler {
 	return &Handler{
 		maxBytesLength: maxBodyLength,
 		userService:    userService,
+		orderService:   orderService,
+		balanceService: balanceService,
 	}
 }
 

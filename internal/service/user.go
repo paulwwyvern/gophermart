@@ -35,12 +35,10 @@ func (s *UserService) RegisterUser(ctx context.Context, login string, password s
 	if err != nil {
 		return "", err
 	}
-
 	user := &model.User{
 		Login:    login,
 		Password: passwordHash,
 	}
-
 	err = s.userRepo.CreateUser(ctx, user)
 	if err != nil {
 		return "", err

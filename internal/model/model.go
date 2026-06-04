@@ -1,6 +1,10 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"github.com/shopspring/decimal"
+)
 
 type User struct {
 	UserID   int64
@@ -8,11 +12,17 @@ type User struct {
 	Password string
 }
 
+type UserBalance struct {
+	UserID    int64
+	Balance   decimal.Decimal
+	Withdrawn decimal.Decimal
+}
+
 type Order struct {
 	OrderID    int64
 	UserID     int64
 	Number     string
 	Status     string
-	Accrual    int
+	Accrual    decimal.Decimal
 	UploadedAt time.Time
 }

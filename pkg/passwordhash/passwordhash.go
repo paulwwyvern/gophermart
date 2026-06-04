@@ -20,9 +20,16 @@ func (e *Error) Unwrap() error {
 
 func HashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), NewError(err)
+	if err != nil {
+		return "", NewError(err)
+	}
+	return string(bytes), nil
 }
 
 func VerifyPassword(hash, password string) error {
-	return NewError(bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)))
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	if err != nil {
+		return NewError(err)
+	}
+	return nil
 }

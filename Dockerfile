@@ -10,7 +10,7 @@ RUN go mod download
 
 COPY . .
 
-RUN go build -o /app/gophermart ./cmd/gophermart
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/gophermart ./cmd/gophermart
 
 FROM alpine:latest as run
 

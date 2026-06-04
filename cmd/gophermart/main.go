@@ -18,7 +18,8 @@ import (
 
 const (
 	tokenSecret = "abcde"
-	tokenTTL    = time.Second * 10
+	tokenTTL    = time.Hour * 168
+	maxBodyLen  = 1024 * 1024
 )
 
 func main() {
@@ -40,16 +41,25 @@ func main() {
 	if err != nil {
 		log.Fatalf("can't migrate database: %v", err)
 	}
+	logger.Info("Migrate database successfully")
 
 	storage, err := postgres.NewStorage(conf.DatabaseConfig.DatabaseURI)
 	if err != nil {
 		log.Fatalf("can't initialize postgres storage: %v", err)
 	}
 	defer storage.Close()
+	logger.Info("Create postgres connection")
 
 	userService := service.NewUserService(storage, tokenParser)
+	logger.Info("Create user service successfully")
 
-	h := handler.NewHandler(userService)
+	orderService := service.NewOrderService(storage)
+	logger.Info("Create order service successfully")
+
+	balanceService := service.NewBalanceService(storage)
+	logger.Info("Create balance service successfully")
+
+	h := handler.NewHandler(maxBodyLen, userService, orderService, balanceService)
 
 	r := chi.NewRouter()
 	r.Use(mwlogger.WithLogger(logger))
@@ -58,8 +68,13 @@ func main() {
 	r.Group(func(r chi.Router) {
 		r.Use(mwauth.WithAuth(tokenParser))
 
+		r.Post("/api/user/orders", h.CreateOrder)
+		r.Get("/api/user/orders", h.GetOrders)
+		r.Post("/api/user/balance", h.AddBalance)
+		r.Get("/api/user/balance", h.GetBalance)
 		r.Get("/echo", h.Echo)
 	})
+	logger.Info("Initialize handler successfully")
 
 	server := &http.Server{
 		Addr:    ":8080",

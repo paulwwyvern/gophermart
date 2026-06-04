@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"strings"
@@ -48,4 +49,19 @@ func Migrate(source string, databaseDsn string) error {
 
 func (s *Storage) Close() {
 	s.db.Close()
+}
+
+type ctxKey string
+
+var txKey ctxKey = "tx"
+
+func insertTx(ctx context.Context, tx *sql.Tx) {
+	ctx = context.WithValue(ctx, txKey, tx)
+}
+
+func getTx(ctx context.Context) *sql.Tx {
+	if tx, ok := ctx.Value(txKey).(*sql.Tx); ok {
+		return tx
+	}
+	return nil
 }

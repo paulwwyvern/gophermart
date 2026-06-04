@@ -46,8 +46,8 @@ func (h *Handler) registerUser(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusBadRequest)
 		return err
 	}
-
 	token, err := h.userService.RegisterUser(ctx, req.Login, req.Password)
+
 	if err != nil {
 		var passwdHashErr *passwordhash.Error
 
