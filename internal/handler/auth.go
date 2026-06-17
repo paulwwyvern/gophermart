@@ -4,13 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 
 	"github.com/paulwwyvern/gophermart/internal/model/dto"
 	"github.com/paulwwyvern/gophermart/internal/model/errs"
 	"github.com/paulwwyvern/gophermart/pkg/httphelpers/httperr"
-	"github.com/paulwwyvern/gophermart/pkg/passwordhash"
 )
 
 type UserService interface {
@@ -25,18 +23,8 @@ func (h *Handler) RegisterUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) registerUser(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	r.Body = http.MaxBytesReader(w, r.Body, h.maxBytesLength)
-	body, err := io.ReadAll(r.Body)
+	body, err := ReadBody(w, r, h.maxBytesLength)
 	if err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			w.WriteHeader(http.StatusRequestEntityTooLarge)
-			return err
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			w.WriteHeader(http.StatusRequestTimeout)
-			return err
-		}
-		w.WriteHeader(http.StatusBadRequest)
 		return err
 	}
 
@@ -49,12 +37,7 @@ func (h *Handler) registerUser(w http.ResponseWriter, r *http.Request) error {
 	token, err := h.userService.RegisterUser(ctx, req.Login, req.Password)
 
 	if err != nil {
-		var passwdHashErr *passwordhash.Error
-
-		if errors.As(err, &passwdHashErr) {
-			w.WriteHeader(http.StatusBadRequest)
-			return err
-		} else if errors.Is(err, errs.ErrUserAlreadyExists) {
+		if errors.Is(err, errs.ErrUserAlreadyExists) {
 			w.WriteHeader(http.StatusConflict)
 			return err
 		}
@@ -81,18 +64,8 @@ func (h *Handler) LoginUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) loginUser(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	r.Body = http.MaxBytesReader(w, r.Body, h.maxBytesLength)
-	body, err := io.ReadAll(r.Body)
+	body, err := ReadBody(w, r, h.maxBytesLength)
 	if err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			w.WriteHeader(http.StatusRequestEntityTooLarge)
-			return err
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			w.WriteHeader(http.StatusRequestTimeout)
-			return err
-		}
-		w.WriteHeader(http.StatusBadRequest)
 		return err
 	}
 

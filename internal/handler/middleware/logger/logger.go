@@ -1,11 +1,12 @@
 package logger
 
 import (
+	"net/http"
+	"time"
+
 	"github.com/paulwwyvern/gophermart/pkg/httphelpers/httperr"
 	"github.com/paulwwyvern/gophermart/pkg/httphelpers/httpuser"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
 type responseWriter struct {
@@ -25,6 +26,7 @@ func (w *responseWriter) Write(b []byte) (int, error) {
 	return size, err
 }
 
+// WithLogger логирует все запросы
 func WithLogger(logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

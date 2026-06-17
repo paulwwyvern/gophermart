@@ -8,12 +8,22 @@ import (
 
 	"github.com/paulwwyvern/gophermart/internal/model"
 	"github.com/paulwwyvern/gophermart/internal/model/errs"
+	"github.com/shopspring/decimal"
 )
 
+var orderStatuses = map[string]int{
+	"NEW":        0,
+	"PROCESSING": 1,
+	"INVALID":    2,
+	"PROCESSED":  3,
+}
+
 func (s *Storage) CreateOrder(ctx context.Context, userId int64, number string) (int64, error) {
-	stmt, err := s.db.PrepareContext(ctx, "INSERT INTO orders (user_id, number) "+
-		"VALUES ($1, $2) ON CONFLICT(number) DO UPDATE SET number = excluded.number "+
-		"RETURNING user_id, (xmax != 0);")
+	query := "INSERT INTO orders (user_id, number) " +
+		"VALUES ($1, $2) ON CONFLICT(number) DO UPDATE SET number = excluded.number " +
+		"RETURNING user_id, (xmax != 0);"
+
+	stmt, err := s.Prepare(ctx, query)
 	if err != nil {
 		return 0, fmt.Errorf("Postgres.CreateOrder: prepare statement error: %w", err)
 	}
@@ -33,9 +43,10 @@ func (s *Storage) CreateOrder(ctx context.Context, userId int64, number string) 
 }
 
 func (s *Storage) GetOrderByID(ctx context.Context, orderId int64) (*model.Order, error) {
-	stmt, err := s.db.PrepareContext(ctx,
-		`SELECT o.id, o.user_id, o.number, s.status, o.accrual, o.uploaded_at 
-			FROM orders o JOIN order_statuses s ON o.status = s.id WHERE order_id = $1`)
+	query := "SELECT o.id, o.user_id, o.number, s.status, o.accrual, o.uploaded_at " +
+		"FROM orders o JOIN order_statuses s ON o.status = s.id WHERE order_id = $1"
+
+	stmt, err := s.Prepare(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("Postgres.GetOrderByID: prepare statement error: %w", err)
 	}
@@ -54,8 +65,10 @@ func (s *Storage) GetOrderByID(ctx context.Context, orderId int64) (*model.Order
 }
 
 func (s *Storage) GetOrdersByUserID(ctx context.Context, userId int64) ([]*model.Order, error) {
-	stmt, err := s.db.PrepareContext(ctx, `SELECT o.id, o.number, s.status, o.accrual, o.uploaded_at
-			FROM orders o JOIN order_statuses s ON o.status = s.id WHERE user_id = $1 ORDER BY o.uploaded_at DESC`)
+	query := "SELECT o.id, o.number, s.status, o.accrual, o.uploaded_at " +
+		"FROM orders o JOIN order_statuses s ON o.status = s.id WHERE user_id = $1 ORDER BY o.uploaded_at DESC"
+
+	stmt, err := s.Prepare(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("Postgres.GetOrdersByUserID: prepare statement error: %w", err)
 	}
@@ -83,4 +96,51 @@ func (s *Storage) GetOrdersByUserID(ctx context.Context, userId int64) ([]*model
 		return nil, fmt.Errorf("Postgres.GetOrdersByUserID: rows.Err error: %w", err)
 	}
 	return orders, nil
+}
+
+func (s *Storage) GetNewOrProcessingOrderNumbers(ctx context.Context, batchSize int) ([]*model.ProcessingOrder, error) {
+	query := "SELECT user_id, number FROM orders WHERE status = 0 OR status = 1 ORDER BY updated_at ASC LIMIT $1 FOR UPDATE SKIP LOCKED"
+
+	stmt, err := s.Prepare(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("Postgres.GetNewOrProcessingOrderNumbers: prepare statement error: %w", err)
+	}
+	defer stmt.Close()
+
+	rows, err := stmt.QueryContext(ctx, batchSize)
+	if err != nil {
+		return nil, fmt.Errorf("Postgres.GetNewOrProcessingOrderNumbers: exec query error: %w", err)
+	}
+	defer rows.Close()
+
+	var processingOrders []*model.ProcessingOrder
+	for rows.Next() {
+		processingOrder := &model.ProcessingOrder{}
+		err = rows.Scan(&processingOrder.UserID, &processingOrder.OrderNumber)
+		if err != nil {
+			return nil, fmt.Errorf("Postgres.GetNewOrProcessingOrderNumbers: rows.Scan error: %w", err)
+		}
+		processingOrders = append(processingOrders, processingOrder)
+	}
+	err = rows.Err()
+	if err != nil {
+		return nil, fmt.Errorf("Postgres.GetNewOrProcessingOrderNumbers: rows.Err error: %w", err)
+	}
+	return processingOrders, nil
+}
+
+func (s *Storage) SetOrderStatus(ctx context.Context, number string, status string, accrual decimal.Decimal) error {
+	query := "UPDATE orders SET status = $1, accrual = $2 WHERE number = $3"
+
+	stmt, err := s.Prepare(ctx, query)
+	if err != nil {
+		return fmt.Errorf("Postgres.SetOrderStatus: prepare statement error: %w", err)
+	}
+	defer stmt.Close()
+
+	_, err = stmt.ExecContext(ctx, orderStatuses[status], accrual, number)
+	if err != nil {
+		return fmt.Errorf("Postgres.SetOrderStatus: exec query error: %w", err)
+	}
+	return nil
 }

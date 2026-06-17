@@ -1,6 +1,9 @@
 package errs
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
 var (
 	ErrUserAlreadyExists        = errors.New("user already exists")
@@ -13,4 +16,14 @@ var (
 	ErrOrderNotFound            = errors.New("order not found")
 	ErrOrderConflict            = errors.New("order conflict")
 	ErrBalanceNotEnough         = errors.New("balance not enough")
+	ErrAccrualNotRegistered     = errors.New("accrual not registered")
 )
+
+type ErrAccrualTooManyRequests struct {
+	RetryAfter int
+	Body       string
+}
+
+func (e ErrAccrualTooManyRequests) Error() string {
+	return fmt.Sprintf("Retry after %d seconds, %s", e.RetryAfter, e.Body)
+}

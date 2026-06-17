@@ -8,9 +8,8 @@ import (
 	"github.com/paulwwyvern/gophermart/pkg/passwordhash"
 )
 
-// после вызова userId внутри user изменяется на присвоенный id
 type UserRepository interface {
-	CreateUser(ctx context.Context, user *model.User) error
+	CreateUser(ctx context.Context, user *model.User) (int64, error)
 	GetUserByLogin(ctx context.Context, login string) (*model.User, error)
 }
 
@@ -39,12 +38,12 @@ func (s *UserService) RegisterUser(ctx context.Context, login string, password s
 		Login:    login,
 		Password: passwordHash,
 	}
-	err = s.userRepo.CreateUser(ctx, user)
+	userId, err := s.userRepo.CreateUser(ctx, user)
 	if err != nil {
 		return "", err
 	}
 
-	token, err := s.tokenCreator.CreateToken(user.UserID)
+	token, err := s.tokenCreator.CreateToken(userId)
 	if err != nil {
 		return "", err
 	}

@@ -32,6 +32,8 @@ func NewStorage(databaseUrl string) (*Storage, error) {
 
 func Migrate(source string, databaseDsn string) error {
 	databaseDsn = strings.TrimPrefix(databaseDsn, "postgres://")
+	databaseDsn = strings.TrimPrefix(databaseDsn, "postgresql://")
+
 	databaseDsn = "pgx5://" + databaseDsn
 
 	source = "file://" + source
@@ -49,6 +51,17 @@ func Migrate(source string, databaseDsn string) error {
 
 func (s *Storage) Close() {
 	s.db.Close()
+}
+
+func (s *Storage) Prepare(ctx context.Context, query string) (*sql.Stmt, error) {
+	var stmt *sql.Stmt
+	var err error
+	if tx := getTx(ctx); tx != nil {
+		stmt, err = tx.PrepareContext(ctx, query)
+	} else {
+		stmt, err = s.db.PrepareContext(ctx, query)
+	}
+	return stmt, err
 }
 
 func (s *Storage) BeginTx(ctx context.Context) (context.Context, error) {

@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 
 	"github.com/paulwwyvern/gophermart/internal/model"
@@ -10,15 +9,9 @@ import (
 )
 
 func (s *Storage) AddUserBalanceByID(ctx context.Context, userID int64, add decimal.Decimal) error {
-
 	query := "UPDATE users SET balance = balance + $1 WHERE id = $2;"
-	var stmt *sql.Stmt
-	var err error
-	if tx := getTx(ctx); tx != nil {
-		stmt, err = tx.PrepareContext(ctx, query)
-	} else {
-		stmt, err = s.db.PrepareContext(ctx, query)
-	}
+
+	stmt, err := s.Prepare(ctx, query)
 	if err != nil {
 		return fmt.Errorf("Postgres.AddUserBalance: prepare statement error: %w", err)
 	}
@@ -32,15 +25,9 @@ func (s *Storage) AddUserBalanceByID(ctx context.Context, userID int64, add deci
 }
 
 func (s *Storage) AddUserWithdrawnByID(ctx context.Context, userID int64, add decimal.Decimal) error {
-
 	query := "UPDATE users SET withdrawn = withdrawn + $1 WHERE id = $2;"
-	var stmt *sql.Stmt
-	var err error
-	if tx := getTx(ctx); tx != nil {
-		stmt, err = tx.PrepareContext(ctx, query)
-	} else {
-		stmt, err = s.db.PrepareContext(ctx, query)
-	}
+
+	stmt, err := s.Prepare(ctx, query)
 	if err != nil {
 		return fmt.Errorf("Postgres.AddUserWithdrawn: prepare statement error: %w", err)
 	}
@@ -54,15 +41,9 @@ func (s *Storage) AddUserWithdrawnByID(ctx context.Context, userID int64, add de
 }
 
 func (s *Storage) GetUserBalanceByID(ctx context.Context, userID int64) (*model.UserBalance, error) {
-
 	query := "SELECT balance, withdrawn FROM users WHERE id = $1 FOR UPDATE;"
-	var stmt *sql.Stmt
-	var err error
-	if tx := getTx(ctx); tx != nil {
-		stmt, err = tx.PrepareContext(ctx, query)
-	} else {
-		stmt, err = s.db.PrepareContext(ctx, query)
-	}
+
+	stmt, err := s.Prepare(ctx, query)
 	if err != nil {
 		return &model.UserBalance{}, fmt.Errorf("Postgres.GetUserBalanceByLogin: prepare statement error: %w", err)
 	}
@@ -78,15 +59,9 @@ func (s *Storage) GetUserBalanceByID(ctx context.Context, userID int64) (*model.
 }
 
 func (s *Storage) CreateWithdrawal(ctx context.Context, withdrawal *model.Withdrawal) error {
-
 	query := "INSERT INTO withdrawals(user_id, order_number, sum) VALUES($1, $2, $3);"
-	var stmt *sql.Stmt
-	var err error
-	if tx := getTx(ctx); tx != nil {
-		stmt, err = tx.PrepareContext(ctx, query)
-	} else {
-		stmt, err = s.db.PrepareContext(ctx, query)
-	}
+
+	stmt, err := s.Prepare(ctx, query)
 	if err != nil {
 		return fmt.Errorf("Postgres.CreateWithdrawal: prepare statement error: %w", err)
 	}
@@ -100,7 +75,9 @@ func (s *Storage) CreateWithdrawal(ctx context.Context, withdrawal *model.Withdr
 }
 
 func (s *Storage) GetWithdrawalsByUserID(ctx context.Context, userID int64) ([]*model.Withdrawal, error) {
-	stmt, err := s.db.PrepareContext(ctx, "SELECT order_number, sum, processed_at FROM withdrawals WHERE user_id = $1 ORDER BY processed_at DESC;")
+	query := "SELECT order_number, sum, processed_at FROM withdrawals WHERE user_id = $1 ORDER BY processed_at DESC;"
+
+	stmt, err := s.Prepare(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("Postgres.GetWithdrawalsByUserID: prepare statement error: %w", err)
 	}

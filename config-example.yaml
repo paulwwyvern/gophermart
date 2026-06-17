@@ -1,9 +1,4 @@
 run_address: ":8080"
 database:
-  database_uri: "postgres://postgres:postgres@127.0.0.1:5432/gophermart?sslmode=disable"
+  database_uri: "postgres://postgres:postgres@localhost:5432/gophermart?sslmode=disable"
   migration_source: "./migration"
-  #host: "127.0.0.1"
-  #port: "5432"
-  #username: "postgres"
-  #password: "postgres"
-  #database: "gophermart"

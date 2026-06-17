@@ -27,6 +27,11 @@ type Order struct {
 	UploadedAt time.Time
 }
 
+type ProcessingOrder struct {
+	UserID      int64
+	OrderNumber string
+}
+
 type Withdrawal struct {
 	WithdrawalID int64
 	UserID       int64

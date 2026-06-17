@@ -1,9 +1,11 @@
 package config
 
 import (
+	"crypto/rand"
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"go.uber.org/zap"
@@ -11,7 +13,7 @@ import (
 
 type DatabaseConfig struct {
 	DatabaseURI     string `env:"DATABASE_URI" yaml:"database_uri"`
-	MigrationSource string `env:"MIGRATION_SOURCE" yaml:"migration_source"`
+	MigrationSource string `env:"MIGRATION_SOURCE" yaml:"migration_source" env-default:"./migration"`
 
 	Host     string `env:"DB_HOST" yaml:"host"`
 	Port     string `env:"DB_PORT" yaml:"port"`
@@ -19,6 +21,19 @@ type DatabaseConfig struct {
 	Password string `env:"DB_PASSWORD" yaml:"password"`
 	Database string `env:"DB_DATABASE" yaml:"database"`
 }
+
+type TokenConfig struct {
+	Secret string        `env:"TOKEN_SECRET" yaml:"secret"`
+	TTL    time.Duration `env:"TOKEN_TTL" yaml:"ttl" env-default:"168h"`
+}
+
+type WorkersConfig struct {
+	Count             int           `env:"WORKERS_COUNT" yaml:"count" env-default:"1"`
+	BatchSize         int           `env:"WORKERS_BATCH_SIZE" yaml:"batch_size" env-default:"10"`
+	RetryAfterDefault int           `env:"WORKERS_RETRY_AFTER_DEFAULT" yaml:"retry_after_default" env-default:"10"`
+	PollInterval      time.Duration `env:"WORKERS_POLL_INTERVAL" yaml:"poll_interval" env-default:"10s"`
+}
+
 type Config struct {
 	ConfigPath string
 
@@ -26,6 +41,8 @@ type Config struct {
 	AccrualSystemAddress string `env:"ACCRUAL_SYSTEM_ADDRESS" yaml:"accrual_system_address"`
 
 	DatabaseConfig DatabaseConfig `yaml:"database"`
+	TokenConfig    TokenConfig    `yaml:"token"`
+	WorkersConfig  WorkersConfig  `yaml:"workers"`
 }
 
 func parseFlags() *Config {
@@ -89,11 +106,16 @@ func NewConfig() *Config {
 		GetDatabaseURI(&conf.DatabaseConfig)
 	}
 
+	// если токен не задан
+	if conf.TokenConfig.Secret == "" {
+		conf.TokenConfig.Secret = rand.Text()
+	}
+
 	return conf
 }
 
 func GetDatabaseURI(dbc *DatabaseConfig) {
-	if dbc.Host == "" || dbc.Database == "" || dbc.Username == "" || dbc.Password == "" || dbc.Port == "" {
+	if dbc.Host == "" || dbc.Database == "" || dbc.Username == "" || dbc.Port == "" {
 		dbc.DatabaseURI = ""
 		return
 	}

@@ -1,12 +1,11 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
-	"strings"
 
 	"github.com/paulwwyvern/gophermart/internal/model/dto"
 	"github.com/paulwwyvern/gophermart/internal/model/errs"
@@ -29,25 +28,15 @@ func (h *Handler) AddBalance(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) addBalance(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	r.Body = http.MaxBytesReader(w, r.Body, h.maxBytesLength)
-	body, err := io.ReadAll(r.Body)
+	body, err := ReadBody(w, r, h.maxBytesLength)
 	if err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			w.WriteHeader(http.StatusRequestEntityTooLarge)
-			return err
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			w.WriteHeader(http.StatusRequestTimeout)
-			return err
-		}
-		w.WriteHeader(http.StatusBadRequest)
 		return err
 	}
-	bodyString := string(body)
-	bodyString = strings.TrimSpace(bodyString)
+
+	body = bytes.TrimSpace(body)
 
 	userID := httpuser.GetUserID(r)
-	balance, err := decimal.NewFromString(bodyString)
+	balance, err := decimal.NewFromString(string(body))
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		return err
@@ -77,6 +66,7 @@ func (h *Handler) getBalance(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
 	return json.NewEncoder(w).Encode(balance)
@@ -89,18 +79,8 @@ func (h *Handler) CreateWithdrawal(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) createWithdrawals(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	r.Body = http.MaxBytesReader(w, r.Body, h.maxBytesLength)
-	body, err := io.ReadAll(r.Body)
+	body, err := ReadBody(w, r, h.maxBytesLength)
 	if err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			w.WriteHeader(http.StatusRequestEntityTooLarge)
-			return err
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			w.WriteHeader(http.StatusRequestTimeout)
-			return err
-		}
-		w.WriteHeader(http.StatusBadRequest)
 		return err
 	}
 
@@ -145,6 +125,12 @@ func (h *Handler) getWithdrawals(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusInternalServerError)
 		return err
 	}
+	if len(withdrawals) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return nil
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	return json.NewEncoder(w).Encode(withdrawals)
 }

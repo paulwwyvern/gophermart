@@ -6,6 +6,7 @@ services:
       - 8080:8080
     environment:
       - CONFIG_PATH=/config.yaml
+      - ACCRUAL_SYSTEM_ADDRESS=http://accrual:8080/
       - DB_HOST=postgres
       - DB_PORT=5432
       - DB_USERNAME=postgres
@@ -16,13 +17,23 @@ services:
       - ./migration:/app/migration:ro
     depends_on:
       - postgres
+      - accrual
+    networks:
+      - gophermart
+
+  accrual:
+    build:
+      context: ./cmd/accrual
+    environment:
+      - RUN_ADDRESS=localhost:8080
+      - DATABASE_URI=postgres://postgres:postgres@postgres-accrual:5432/accrual?sslmode=disable
+    depends_on:
+      - postgres-accrual
     networks:
       - gophermart
 
   postgres:
     image: postgres:18
-    ports:
-      - 5432:5432
     environment:
       - POSTGRES_DB=gophermart
       - POSTGRES_USER=postgres
@@ -33,23 +44,8 @@ services:
     networks:
       - gophermart
 
-
-  pgadmin:
-    image: dpage/pgadmin4:9.15
-    environment:
-      PGADMIN_DEFAULT_EMAIL: "admin@example.org"
-      PGADMIN_DEFAULT_PASSWORD: "admin"
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    volumes:
-      - gophermart-pgadmin-data:/var/lib/pgadmin
-    ports:
-      - "5050:80"
-    networks:
-      - gophermart
-
 volumes:
   gophermart-data:
-  gophermart-pgadmin-data:
 
 networks:
   gophermart:

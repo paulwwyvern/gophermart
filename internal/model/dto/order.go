@@ -9,6 +9,6 @@ import (
 type GetOrdersResponse struct {
 	Number     string          `json:"number"`
 	Status     string          `json:"status"`
-	Accrual    decimal.Decimal `json:"accrual,omitempty"`
+	Accrual    decimal.Decimal `json:"accrual,omitzero"`
 	UploadedAt time.Time       `json:"uploaded_at"`
 }

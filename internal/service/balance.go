@@ -61,20 +61,24 @@ func (s *BalanceService) CreateWithdrawal(ctx context.Context, req *dto.CreateWi
 	}
 	defer s.balanceRepository.RollbackTx(ctxTx)
 
+	// ПОлучаем текущий баланс
 	userBalance, err := s.balanceRepository.GetUserBalanceByID(ctxTx, req.UserID)
 	if err != nil {
 		return err
 	}
 
+	// Если баллов недостаточно, то кидаем ошибку
 	if userBalance.Balance.LessThan(req.Sum) {
 		return errs.ErrBalanceNotEnough
 	}
 
+	// Снимаем деньги
 	err = s.balanceRepository.AddUserBalanceByID(ctxTx, req.UserID, req.Sum.Neg())
 	if err != nil {
 		return err
 	}
 
+	// добавляем траты
 	err = s.balanceRepository.AddUserWithdrawnByID(ctxTx, req.UserID, req.Sum)
 	if err != nil {
 		return err
@@ -86,6 +90,7 @@ func (s *BalanceService) CreateWithdrawal(ctx context.Context, req *dto.CreateWi
 		Sum:         req.Sum,
 	}
 
+	// сохраняем списание
 	err = s.balanceRepository.CreateWithdrawal(ctxTx, withdrawal)
 	if err != nil {
 		return err

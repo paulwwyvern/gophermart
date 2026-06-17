@@ -12,10 +12,12 @@ import (
 	"github.com/paulwwyvern/gophermart/internal/model/errs"
 )
 
-func (s *Storage) CreateUser(ctx context.Context, user *model.User) error {
-	stmt, err := s.db.PrepareContext(ctx, `INSERT INTO users (login, password_hash) VALUES ($1, $2) RETURNING id`)
+func (s *Storage) CreateUser(ctx context.Context, user *model.User) (int64, error) {
+	query := `INSERT INTO users (login, password_hash) VALUES ($1, $2) RETURNING id`
+
+	stmt, err := s.Prepare(ctx, query)
 	if err != nil {
-		return fmt.Errorf("Postgres.CreateUser: prepare statement error: %w", err)
+		return 0, fmt.Errorf("Postgres.CreateUser: prepare statement error: %w", err)
 	}
 	defer stmt.Close()
 
@@ -25,19 +27,19 @@ func (s *Storage) CreateUser(ctx context.Context, user *model.User) error {
 		var pgxErr *pgconn.PgError
 		if errors.As(err, &pgxErr) {
 			if pgxErr.Code == pgerrcode.UniqueViolation {
-				return errs.ErrUserAlreadyExists
+				return 0, errs.ErrUserAlreadyExists
 			}
 		}
-		return fmt.Errorf("CreateUser: query error: %w", err)
+		return 0, fmt.Errorf("CreateUser: query error: %w", err)
 	}
 
-	user.UserID = userId
-
-	return nil
+	return userId, nil
 }
 
 func (s *Storage) GetUserByLogin(ctx context.Context, login string) (*model.User, error) {
-	stmt, err := s.db.PrepareContext(ctx, `SELECT id, login, password_hash FROM users WHERE login = $1`)
+	query := `SELECT id, login, password_hash FROM users WHERE login = $1`
+
+	stmt, err := s.Prepare(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("Postgres.GetUserByLogin: prepare statement error: %w", err)
 	}

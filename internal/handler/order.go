@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 
@@ -26,18 +25,8 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) createOrder(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
-	r.Body = http.MaxBytesReader(w, r.Body, h.maxBytesLength)
-	body, err := io.ReadAll(r.Body)
+	body, err := ReadBody(w, r, h.maxBytesLength)
 	if err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
-			w.WriteHeader(http.StatusRequestEntityTooLarge)
-			return err
-		} else if errors.Is(err, context.DeadlineExceeded) {
-			w.WriteHeader(http.StatusRequestTimeout)
-			return err
-		}
-		w.WriteHeader(http.StatusBadRequest)
 		return err
 	}
 
@@ -60,7 +49,7 @@ func (h *Handler) createOrder(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	w.WriteHeader(http.StatusAccepted)
 	return nil
 }
 
@@ -82,7 +71,8 @@ func (h *Handler) getOrders(w http.ResponseWriter, r *http.Request) error {
 		w.WriteHeader(http.StatusNoContent)
 		return nil
 	}
-	w.WriteHeader(http.StatusOK)
+
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 	return json.NewEncoder(w).Encode(orders)
 }

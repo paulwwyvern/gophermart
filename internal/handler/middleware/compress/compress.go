@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+// WithCompress разпаковывает запрос, если запрос был сжат и сжимает ответ, если пользователь поддерживает это
+//
+// Доступные алгоритмы сжатия:
+//
+// gzip, deflate
 func WithCompress() func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
