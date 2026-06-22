@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/paulwwyvern/gophermart/internal/model"
@@ -11,7 +13,6 @@ import (
 	"github.com/paulwwyvern/gophermart/internal/model/errs"
 	"github.com/paulwwyvern/gophermart/pkg/luhn"
 	"github.com/shopspring/decimal"
-	"go.uber.org/zap"
 )
 
 type OrderRepository interface {
@@ -89,7 +90,7 @@ type OrderWorkerPool struct {
 	accrualRepository OrderAccrualRepository
 	statusRepository  OrderStatusRepository
 
-	isCoolDown bool
+	isCoolDown atomic.Bool
 
 	numWorkers int
 	batchSize  int
@@ -110,8 +111,7 @@ func NewOrderWorkerPool(accrualRepository OrderAccrualRepository, statusReposito
 	}
 }
 
-func (p *OrderWorkerPool) Run(ctx context.Context, logger *zap.Logger, interval time.Duration) {
-	p.isCoolDown = false
+func (p *OrderWorkerPool) Run(ctx context.Context, logger *slog.Logger, interval time.Duration) {
 	p.closeCh = make(chan struct{})
 
 	var wg sync.WaitGroup
@@ -155,7 +155,7 @@ func (p *OrderWorkerPool) runner(ctx context.Context, interval time.Duration, si
 	for {
 		select {
 		case <-ticker.C:
-			if p.isCoolDown {
+			if p.isCoolDown.Load() {
 				continue
 			}
 			for i := 0; i < p.numWorkers; i++ {
@@ -174,7 +174,7 @@ func (p *OrderWorkerPool) runner(ctx context.Context, interval time.Duration, si
 // 2) Для каждого заказа идёт в сторонний сервис, где узнаёт его статус
 //
 // 3) Если обработка заказа закончена и пользователь должен получить баллы --- они начисляются
-func (p *OrderWorkerPool) worker(ctx context.Context, logger *zap.Logger, sigCh <-chan struct{}, errCh chan<- error) {
+func (p *OrderWorkerPool) worker(ctx context.Context, logger *slog.Logger, sigCh <-chan struct{}, errCh chan<- error) {
 	for _ = range sigCh {
 		err := p.getOrderStatus(ctx, logger, p.batchSize)
 		if err != nil {
@@ -187,7 +187,7 @@ func (p *OrderWorkerPool) worker(ctx context.Context, logger *zap.Logger, sigCh 
 //
 // В частности, если сработал RateLimiter, то ставится специальный флаг, чтобы runner не отправлял новые команды
 // и через указанный промежуток времени флаг снимается
-func (p *OrderWorkerPool) errorWorker(logger *zap.Logger, errCh <-chan error) {
+func (p *OrderWorkerPool) errorWorker(logger *slog.Logger, errCh <-chan error) {
 	for err := range errCh {
 		if err == nil {
 			continue
@@ -199,22 +199,21 @@ func (p *OrderWorkerPool) errorWorker(logger *zap.Logger, errCh <-chan error) {
 				retryAfter = p.retryAfterDefault
 			}
 
-			if p.isCoolDown {
+			if !p.isCoolDown.CompareAndSwap(false, true) {
 				continue
 			}
-			p.isCoolDown = true
 
 			go func() {
 				time.Sleep(time.Duration(retryAfter) * time.Second)
-				p.isCoolDown = false
+				p.isCoolDown.Store(false)
 			}()
 		}
 
-		logger.Info("Get order Worker Pool error", zap.Error(err))
+		logger.Info("Get order Worker Pool error", slog.String("error", err.Error()))
 	}
 }
 
-func (p *OrderWorkerPool) getOrderStatus(ctx context.Context, logger *zap.Logger, batchSize int) error {
+func (p *OrderWorkerPool) getOrderStatus(ctx context.Context, logger *slog.Logger, batchSize int) error {
 	ctxTx, err := p.statusRepository.BeginTx(ctx)
 	if err != nil {
 		return err
@@ -255,9 +254,9 @@ func (p *OrderWorkerPool) getOrderStatus(ctx context.Context, logger *zap.Logger
 		// уведомляем про заказы, для которых завершили расчёт вознаграждения или отказали в нём
 		if status == "PROCESSED" || status == "INVALID" {
 			logger.Info("Complete processing order",
-				zap.String("order number", number),
-				zap.String("status", status),
-				zap.Stringer("accrual", accrual),
+				slog.String("order number", number),
+				slog.String("status", status),
+				slog.String("accrual", accrual.String()),
 			)
 		}
 
@@ -268,9 +267,9 @@ func (p *OrderWorkerPool) getOrderStatus(ctx context.Context, logger *zap.Logger
 				return err
 			}
 			logger.Info("Add User Balance",
-				zap.Int64("user id", userID),
-				zap.String("order number", number),
-				zap.Stringer("accrual", accrual),
+				slog.Int64("user id", userID),
+				slog.String("order number", number),
+				slog.String("accrual", accrual.String()),
 			)
 
 		} else {

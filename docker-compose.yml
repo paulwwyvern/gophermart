@@ -26,9 +26,9 @@ services:
       context: ./cmd/accrual
     environment:
       - RUN_ADDRESS=localhost:8080
-      - DATABASE_URI=postgres://postgres:postgres@postgres-accrual:5432/accrual?sslmode=disable
+      - DATABASE_URI=postgres://postgres:postgres@postgres:5432/gophermart?sslmode=disable
     depends_on:
-      - postgres-accrual
+      - postgres
     networks:
       - gophermart
 
@@ -43,6 +43,16 @@ services:
       - gophermart-data:/var/lib/postgresql/data
     networks:
       - gophermart
+
+  postgres2:
+    image: postgres:18
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_DB=gophermart
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - PGDATA=/var/lib/postgresql/data/pgdata
 
 volumes:
   gophermart-data:

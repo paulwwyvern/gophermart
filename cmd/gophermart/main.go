@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os/signal"
@@ -21,6 +22,8 @@ import (
 	"github.com/paulwwyvern/gophermart/pkg/jwtparse"
 	"github.com/shopspring/decimal"
 	"go.uber.org/zap"
+	"go.uber.org/zap/exp/zapslog"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -33,14 +36,25 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	conf := config.NewConfig()
+	conf, err := config.NewConfig()
+	if err != nil {
+		log.Fatal("Failed to init config", err)
+	}
 
 	// Конфигурация логгера
-	logger, err := zap.NewDevelopment()
+	zapLogger, err := zap.Config{
+		Level:            zap.NewAtomicLevelAt(zapcore.InfoLevel),
+		OutputPaths:      []string{"stdout"},
+		ErrorOutputPaths: []string{"stderr"},
+		Encoding:         "json",
+		EncoderConfig:    zap.NewProductionEncoderConfig(),
+	}.Build()
+
 	if err != nil {
-		log.Fatalf("can't initialize zap logger: %v", err)
+		log.Fatal("Failed to init zap logger ", err)
 	}
-	defer logger.Sync()
+
+	logger := slog.New(zapslog.NewHandler(zapLogger.Core()))
 
 	// Вывод конфигурации
 	config.LoggingConfig(logger, conf)
@@ -98,7 +112,7 @@ func main() {
 	logger.Info("Initialize handler successfully")
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    conf.RunAddress,
 		Handler: r,
 		BaseContext: func(_ net.Listener) context.Context {
 			return ctx
@@ -120,7 +134,7 @@ func main() {
 	err = server.Shutdown(shutdownCtx)
 	cancel()
 	if err != nil {
-		logger.Info("Shutdown server err", zap.Error(err))
+		logger.Info("Shutdown server err", slog.String("error", err.Error()))
 	}
 	logger.Info("Server successfully shutdown")
 }

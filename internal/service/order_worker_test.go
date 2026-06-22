@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 
 	"github.com/paulwwyvern/gophermart/internal/model"
@@ -9,13 +10,12 @@ import (
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
-	"go.uber.org/zap"
 )
 
 func TestOrderWorkerPool_GetOrderStatus(t *testing.T) {
 	ctx := context.Background()
 	ctxTx := context.WithValue(ctx, "tx", "tx")
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 
 	orders := []*model.ProcessingOrder{
 		{
@@ -71,7 +71,7 @@ func TestOrderWorkerPool_GetOrderStatus(t *testing.T) {
 func TestOrderWorkerPool_GetOrderStatus_RateLimit(t *testing.T) {
 	ctx := context.Background()
 	ctxTx := context.WithValue(ctx, "tx", "tx")
-	logger := zap.NewNop()
+	logger := slog.New(slog.DiscardHandler)
 
 	orders := []*model.ProcessingOrder{
 		{

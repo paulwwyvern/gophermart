@@ -1,12 +1,12 @@
 package logger
 
 import (
+	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/paulwwyvern/gophermart/pkg/httphelpers/httperr"
 	"github.com/paulwwyvern/gophermart/pkg/httphelpers/httpuser"
-	"go.uber.org/zap"
 )
 
 type responseWriter struct {
@@ -27,7 +27,7 @@ func (w *responseWriter) Write(b []byte) (int, error) {
 }
 
 // WithLogger логирует все запросы
-func WithLogger(logger *zap.Logger) func(http.Handler) http.Handler {
+func WithLogger(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
@@ -42,13 +42,13 @@ func WithLogger(logger *zap.Logger) func(http.Handler) http.Handler {
 			err := httperr.GetError(r)
 
 			logger.Info("http: Get Request",
-				zap.Int64("user id", userID),
-				zap.String("url", url),
-				zap.String("method", method),
-				zap.Int("status", rw.statusCode),
-				zap.Int("size", rw.size),
-				zap.Duration("duration", time.Since(start)),
-				zap.Error(err),
+				slog.Int64("user id", userID),
+				slog.String("url", url),
+				slog.String("method", method),
+				slog.Int("status", rw.statusCode),
+				slog.Int("size", rw.size),
+				slog.Duration("duration", time.Since(start)),
+				slog.Any("error", err),
 			)
 		})
 	}

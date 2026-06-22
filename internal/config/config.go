@@ -4,11 +4,11 @@ import (
 	"crypto/rand"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
-	"go.uber.org/zap"
 )
 
 type DatabaseConfig struct {
@@ -70,7 +70,7 @@ func applyFlags(conf *Config, flagConf *Config) {
 	}
 }
 
-func NewConfig() *Config {
+func NewConfig() (*Config, error) {
 	conf := &Config{}
 	confPath := ""
 
@@ -90,12 +90,15 @@ func NewConfig() *Config {
 
 	conf.ConfigPath = confPath
 
-	if _, err := os.Stat(confPath); os.IsNotExist(err) {
-		// читаем из env если файлов нет
-		cleanenv.ReadEnv(conf)
-	} else {
-		// читаем из файла
-		cleanenv.ReadConfig(confPath, conf)
+	// Чтение конфига из файлов
+	err := cleanenv.ReadConfig(confPath, conf)
+	if err != nil {
+		// если чтение из конфигов из файла завершилось ошибкой
+		err = cleanenv.ReadEnv(conf)
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	// наивысший приоритет у флагов
@@ -111,7 +114,7 @@ func NewConfig() *Config {
 		conf.TokenConfig.Secret = rand.Text()
 	}
 
-	return conf
+	return conf, nil
 }
 
 func GetDatabaseURI(dbc *DatabaseConfig) {
@@ -130,11 +133,12 @@ func GetDatabaseURI(dbc *DatabaseConfig) {
 	return
 }
 
-func LoggingConfig(logger *zap.Logger, conf *Config) {
+func LoggingConfig(logger *slog.Logger, conf *Config) {
 	logger.Info(
 		"Service configuration:",
-		zap.String("Config path", conf.ConfigPath),
-		zap.String("Run address", conf.RunAddress),
-		zap.String("Database URI", conf.DatabaseConfig.DatabaseURI),
+		slog.String("Config path", conf.ConfigPath),
+		slog.String("Run address", conf.RunAddress),
+		slog.String("Database URI", conf.DatabaseConfig.DatabaseURI),
+		slog.String("Accrual System Address", conf.AccrualSystemAddress),
 	)
 }
