@@ -1,0 +1,62 @@
+
+services:
+  gophermart:
+    build: .
+    ports:
+      - 8080:8080
+    environment:
+      - CONFIG_PATH=/config.yaml
+      - ACCRUAL_SYSTEM_ADDRESS=http://accrual:8080/
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=postgres
+      - DB_PASSWORD=postgres
+      - DB_DATABASE=gophermart
+    volumes:
+      - ./config-example.yaml:/config.yaml:ro
+      - ./migration:/app/migration:ro
+    depends_on:
+      - postgres
+      - accrual
+    networks:
+      - gophermart
+
+  accrual:
+    build:
+      context: ./cmd/accrual
+    environment:
+      - RUN_ADDRESS=localhost:8080
+      - DATABASE_URI=postgres://postgres:postgres@postgres:5432/gophermart?sslmode=disable
+    depends_on:
+      - postgres
+    networks:
+      - gophermart
+
+  postgres:
+    image: postgres:18
+    environment:
+      - POSTGRES_DB=gophermart
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - gophermart-data:/var/lib/postgresql/data
+    networks:
+      - gophermart
+
+  postgres2:
+    image: postgres:18
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_DB=gophermart
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - PGDATA=/var/lib/postgresql/data/pgdata
+
+volumes:
+  gophermart-data:
+
+networks:
+  gophermart:
+    driver: bridge
